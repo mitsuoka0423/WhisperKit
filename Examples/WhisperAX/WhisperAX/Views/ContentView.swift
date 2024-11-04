@@ -899,8 +899,11 @@ struct ContentView: View {
                 isPresented: $isSaveFilePickerPresented,
                 document: TextFileDocument(text: confirmedText),
                 contentType: .plainText,
-                defaultFilename: DateFormatter.localizedString(
-                    from: Date(), dateStyle: .short, timeStyle: .medium)  // 現在日時をファイル名に使用
+                defaultFilename: {
+                    let formatter = DateFormatter()
+                    formatter.dateFormat = "yyyyMMdd_HHmmss"
+                    return formatter.string(from: Date()) + ".txt"
+                }()
             ) { result in
                 switch result {
                 case .success(let url):
@@ -1361,7 +1364,7 @@ struct ContentView: View {
                         "Error prewarming models, retrying: \(error.localizedDescription)"
                     )
                     progressBarTask.cancel()
-                    if !redownload {
+                    if (!redownload) {
                         loadModel(model, redownload: true)
                         return
                     } else {
