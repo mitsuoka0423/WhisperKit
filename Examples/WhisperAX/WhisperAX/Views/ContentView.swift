@@ -10,6 +10,7 @@ import AppKit
 #endif
 import AVFoundation
 import CoreML
+import UniformTypeIdentifiers
 
 struct ContentView: View {
     @State private var whisperKit: WhisperKit?
@@ -23,6 +24,8 @@ struct ContentView: View {
     // TODO: Make this configurable in the UI
     @State private var modelStorage: String = "huggingface/models/argmaxinc/whisperkit-coreml"
     @State private var appStartTime = Date()
+    @State private var transcriptionResult: TranscriptionResult?
+    @State private var writer: ResultWriting = WriteSRT(outputDir: FileManager.default.temporaryDirectory.path)
 
     // MARK: Model management
 
@@ -102,6 +105,7 @@ struct ContentView: View {
     @State private var transcriptionTask: Task<Void, Never>?
     @State private var selectedCategoryId: MenuItem.ID?
     @State private var transcribeTask: Task<Void, Never>?
+    @State private var isSaveFilePickerPresented = false
 
     struct MenuItem: Identifiable, Hashable {
         var id = UUID()
@@ -264,101 +268,121 @@ struct ContentView: View {
     // MARK: - Transcription
 
     var transcriptionView: some View {
-        VStack {
-            if !bufferEnergy.isEmpty {
-                ScrollView(.horizontal) {
-                    HStack(spacing: 1) {
-                        let startIndex = max(bufferEnergy.count - 300, 0)
-                        ForEach(Array(bufferEnergy.enumerated())[startIndex...], id: \.element) { _, energy in
-                            ZStack {
-                                RoundedRectangle(cornerRadius: 2)
-                                    .frame(width: 2, height: CGFloat(energy) * 24)
+        HStack {
+            VStack {
+                if !bufferEnergy.isEmpty {
+                    ScrollView(.horizontal) {
+                        HStack(spacing: 1) {
+                            let startIndex = max(bufferEnergy.count - 300, 0)
+                            ForEach(Array(bufferEnergy.enumerated())[startIndex...], id: \.element) { _, energy in
+                                ZStack {
+                                    RoundedRectangle(cornerRadius: 2)
+                                        .frame(width: 2, height: CGFloat(energy) * 24)
+                                }
+                                .frame(maxHeight: 24)
+                                .background(energy > Float(silenceThreshold) ? Color.green.opacity(0.2) : Color.red.opacity(0.2))
                             }
-                            .frame(maxHeight: 24)
-                            .background(energy > Float(silenceThreshold) ? Color.green.opacity(0.2) : Color.red.opacity(0.2))
+                        }
+                    }
+                    .defaultScrollAnchor(.trailing)
+                    .frame(height: 24)
+                    .scrollIndicators(.never)
+                }
+
+                ScrollView {
+                    VStack(alignment: .leading) {
+                        if enableEagerDecoding && isStreamMode {
+                            let startSeconds = eagerResults.first??.segments.first?.start ?? 0
+                            let endSeconds = lastAgreedSeconds > 0 ? lastAgreedSeconds : eagerResults.last??.segments.last?.end ?? 0
+                            let timestampText = (enableTimestamps && eagerResults.first != nil) ? "[\(String(format: "%.2f", startSeconds)) --> \(String(format: "%.2f", endSeconds))]" : ""
+                            Text("\(timestampText) \(Text(confirmedText).fontWeight(.bold))\(Text(hypothesisText).fontWeight(.bold).foregroundColor(.gray))")
+                                .font(.headline)
+                                .multilineTextAlignment(.leading)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+
+                            if enableDecoderPreview {
+                                Text("\(currentText)")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .multilineTextAlignment(.leading)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.top)
+                            }
+                        } else {
+                            ForEach(Array(confirmedSegments.enumerated()), id: \.element) { _, segment in
+                                let timestampText = enableTimestamps ? "[\(String(format: "%.2f", segment.start)) --> \(String(format: "%.2f", segment.end))]" : ""
+                                Text(timestampText + segment.text)
+                                    .font(.headline)
+                                    .fontWeight(.bold)
+                                    .tint(.green)
+                                    .multilineTextAlignment(.leading)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                            ForEach(Array(unconfirmedSegments.enumerated()), id: \.element) { _, segment in
+                                let timestampText = enableTimestamps ? "[\(String(format: "%.2f", segment.start)) --> \(String(format: "%.2f", segment.end))]" : ""
+                                Text(timestampText + segment.text)
+                                    .font(.headline)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.gray)
+                                    .multilineTextAlignment(.leading)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                            if enableDecoderPreview {
+                                Text("\(currentText)")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .multilineTextAlignment(.leading)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
                         }
                     }
                 }
-                .defaultScrollAnchor(.trailing)
-                .frame(height: 24)
-                .scrollIndicators(.never)
+                .frame(maxWidth: .infinity)
+                .defaultScrollAnchor(.bottom)
+                .textSelection(.enabled)
+                .padding()
+                if let whisperKit,
+                !isStreamMode,
+                isTranscribing,
+                let task = transcribeTask,
+                !task.isCancelled,
+                whisperKit.progress.fractionCompleted < 1
+                {
+                    HStack {
+                        ProgressView(whisperKit.progress)
+                            .progressViewStyle(.linear)
+                            .labelsHidden()
+                            .padding(.horizontal)
+
+                        Button {
+                            transcribeTask?.cancel()
+                            transcribeTask = nil
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(.secondary)
+                        }
+                        .buttonStyle(BorderlessButtonStyle())
+                    }
+                }
             }
 
-            ScrollView {
-                VStack(alignment: .leading) {
-                    if enableEagerDecoding && isStreamMode {
-                        let startSeconds = eagerResults.first??.segments.first?.start ?? 0
-                        let endSeconds = lastAgreedSeconds > 0 ? lastAgreedSeconds : eagerResults.last??.segments.last?.end ?? 0
-                        let timestampText = (enableTimestamps && eagerResults.first != nil) ? "[\(String(format: "%.2f", startSeconds)) --> \(String(format: "%.2f", endSeconds))]" : ""
-                        Text("\(timestampText) \(Text(confirmedText).fontWeight(.bold))\(Text(hypothesisText).fontWeight(.bold).foregroundColor(.gray))")
-                            .font(.headline)
-                            .multilineTextAlignment(.leading)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+            Divider()
 
-                        if enableDecoderPreview {
-                            Text("\(currentText)")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                                .multilineTextAlignment(.leading)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.top)
-                        }
-                    } else {
-                        ForEach(Array(confirmedSegments.enumerated()), id: \.element) { _, segment in
-                            let timestampText = enableTimestamps ? "[\(String(format: "%.2f", segment.start)) --> \(String(format: "%.2f", segment.end))]" : ""
-                            Text(timestampText + segment.text)
-                                .font(.headline)
-                                .fontWeight(.bold)
-                                .tint(.green)
-                                .multilineTextAlignment(.leading)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                        ForEach(Array(unconfirmedSegments.enumerated()), id: \.element) { _, segment in
-                            let timestampText = enableTimestamps ? "[\(String(format: "%.2f", segment.start)) --> \(String(format: "%.2f", segment.end))]" : ""
-                            Text(timestampText + segment.text)
-                                .font(.headline)
-                                .fontWeight(.bold)
-                                .foregroundColor(.gray)
-                                .multilineTextAlignment(.leading)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                        if enableDecoderPreview {
-                            Text("\(currentText)")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                                .multilineTextAlignment(.leading)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                    }
-                }
+            VStack() {
+                Text("Debug")
+                    .padding()
+                Text("currentText \(currentText)")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding()
+                Text("hypothesisText \(hypothesisText)")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding()
+                Text("confirmedText \(confirmedText)")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding()
+                Spacer()
             }
             .frame(maxWidth: .infinity)
-            .defaultScrollAnchor(.bottom)
-            .textSelection(.enabled)
-            .padding()
-            if let whisperKit,
-               !isStreamMode,
-               isTranscribing,
-               let task = transcribeTask,
-               !task.isCancelled,
-               whisperKit.progress.fractionCompleted < 1
-            {
-                HStack {
-                    ProgressView(whisperKit.progress)
-                        .progressViewStyle(.linear)
-                        .labelsHidden()
-                        .padding(.horizontal)
-
-                    Button {
-                        transcribeTask?.cancel()
-                        transcribeTask = nil
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.secondary)
-                    }
-                    .buttonStyle(BorderlessButtonStyle())
-                }
-            }
         }
     }
 
@@ -710,6 +734,26 @@ struct ContentView: View {
                         }
                     default:
                         EmptyView()
+                }
+            }
+            Button(action: {
+                isSaveFilePickerPresented = true
+            }) {
+                Text("Save Transcription")
+            }
+            .padding()
+            .disabled(confirmedText.isEmpty) // confirmedText が空でないときにボタンを有効にする
+            .fileExporter(
+                isPresented: $isSaveFilePickerPresented,
+                document: TextFileDocument(text: confirmedText),
+                contentType: .plainText,
+                defaultFilename: "transcription"
+            ) { result in
+                switch result {
+                case .success(let url):
+                    print("Transcription saved to: \(url.path)")
+                case .failure(let error):
+                    print("Failed to save transcription: \(error)")
                 }
             }
         }
@@ -1702,6 +1746,30 @@ struct ContentView: View {
         let mergedResult = mergeTranscriptionResults(eagerResults, confirmedWords: confirmedWords)
 
         return mergedResult
+    }
+}
+
+// 新しいドキュメント型を追加
+struct TextFileDocument: FileDocument {
+    static var readableContentTypes: [UTType] { [.plainText] }
+    var text: String
+
+    init(text: String) {
+        self.text = text
+    }
+
+    init(configuration: ReadConfiguration) throws {
+        if let data = configuration.file.regularFileContents,
+           let string = String(data: data, encoding: .utf8) {
+            text = string
+        } else {
+            throw CocoaError(.fileReadCorruptFile)
+        }
+    }
+
+    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
+        let data = text.data(using: .utf8)!
+        return FileWrapper(regularFileWithContents: data)
     }
 }
 
