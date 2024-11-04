@@ -1341,6 +1341,7 @@ public enum Constants {
     public static let maxTokenContext = Int(448 / 2)
     public static let languages: [String: String] =
         [
+            "japanese": "ja",
             "english": "en",
             "chinese": "zh",
             "german": "de",
@@ -1348,7 +1349,6 @@ public enum Constants {
             "russian": "ru",
             "korean": "ko",
             "french": "fr",
-            "japanese": "ja",
             "portuguese": "pt",
             "turkish": "tr",
             "polish": "pl",
