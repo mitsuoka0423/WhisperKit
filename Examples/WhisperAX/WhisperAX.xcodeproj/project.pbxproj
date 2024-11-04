@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		099516282CD8D4F40097D47D /* DocumentPickerViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 099516272CD8D4F40097D47D /* DocumentPickerViewController.swift */; };
 		161136102B3F6C68003C20F6 /* WhisperKit in Frameworks */ = {isa = PBXBuildFile; productRef = 1611360F2B3F6C68003C20F6 /* WhisperKit */; };
 		164F15AF2C91A51D00C715CB /* DistanceCalculation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 164F15AE2C91A51D00C715CB /* DistanceCalculation.swift */; };
 		16548D3A2C7BB90B002BAE86 /* NormalizeEn.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16548D292C7BB90B002BAE86 /* NormalizeEn.swift */; };
@@ -93,6 +94,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		099516272CD8D4F40097D47D /* DocumentPickerViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentPickerViewController.swift; sourceTree = "<group>"; };
+		09B395E42CD873CB00F0D2F6 /* Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Debug.xcconfig; sourceTree = "<group>"; };
 		161135DE2B3F66DA003C20F6 /* WhisperAX Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "WhisperAX Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		161135F02B3F66DC003C20F6 /* WhisperAX Watch AppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "WhisperAX Watch AppTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		161135FA2B3F66DC003C20F6 /* WhisperAX Watch AppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "WhisperAX Watch AppUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -300,6 +303,7 @@
 			isa = PBXGroup;
 			children = (
 				1677AFE52B57704E008C61C0 /* ContentView.swift */,
+				099516272CD8D4F40097D47D /* DocumentPickerViewController.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -308,6 +312,7 @@
 			isa = PBXGroup;
 			children = (
 				169144182CCEEE87009903CA /* Debug.xcconfig */,
+				09B395E42CD873CB00F0D2F6 /* Debug.xcconfig */,
 				1677AFA82B57618A008C61C0 /* WhisperAX */,
 				1677AFBB2B57618A008C61C0 /* WhisperAXTests */,
 				1677AFB82B57618A008C61C0 /* WhisperAXUITests */,
@@ -605,6 +610,7 @@
 			files = (
 				1677AFE62B57704E008C61C0 /* ContentView.swift in Sources */,
 				1677AFC22B57618A008C61C0 /* WhisperAXApp.swift in Sources */,
+				099516282CD8D4F40097D47D /* DocumentPickerViewController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -947,7 +953,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_ASSET_PATHS = "\"WhisperAX/Preview Content\"";
-				DEVELOPMENT_TEAM = "${DEVELOPMENT_TEAM}";
+				DEVELOPMENT_TEAM = MXV2G82594;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
